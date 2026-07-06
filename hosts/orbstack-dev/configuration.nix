@@ -19,6 +19,7 @@
       ../../modules/base.nix
       ../../modules/inference.nix
       ../../modules/webui.nix
+      ../../modules/odysseus.nix
     ];
 
   users.users.jackbergin = {

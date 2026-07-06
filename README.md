@@ -1,4 +1,4 @@
-# ai-appliance
+# ai-os
 
 A local-first AI appliance OS: plug-in hardware that gives a household or
 small business private AI, built as a NixOS configuration. The OS is this
@@ -7,7 +7,7 @@ repo — every deployed machine is reproducible from a commit hash.
 ## Layout
 
 ```
-flake.nix                     # Pins nixpkgs, declares one config per host
+flake.nix                     # Pins nixpkgs + odysseus, declares one config per host
 hosts/
   orbstack-dev/               # Dev target: OrbStack NixOS container on the Mac
     configuration.nix         # Host plumbing (users, networking, OrbStack bits)
@@ -17,10 +17,43 @@ modules/                      # The product. Portable across hosts.
   base.nix                    # Nix settings, operator tooling
   inference.nix               # Ollama runtime (:11434)
   webui.nix                   # Open WebUI (:8080)
+  odysseus.nix                # Odysseus AI workspace, docker compose stack (:7000)
 ```
 
 `modules/` is the IP: a future `hosts/appliance-v1/` targeting real hardware
 imports the same modules and differs only in host plumbing.
+
+## Services
+
+| Module         | What it is                                          | Port  |
+| -------------- | --------------------------------------------------- | ----- |
+| `inference.nix`| Ollama (declaratively pulls `llama3.2:3b`)          | 11434 |
+| `webui.nix`    | Open WebUI — simple chat front end for Ollama       | 8080  |
+| `odysseus.nix` | Odysseus — self-hosted AI workspace (chat, agents,  | 7000  |
+|                | deep research, documents, email, notes, calendar)   |       |
+
+### Odysseus
+
+[Odysseus](https://github.com/pewdiepie-archdaemon/odysseus) ships as a docker
+compose stack (the app plus `chromadb`, `searxng`, and `ntfy`) built from
+source. Rather than repackage each service, `modules/odysseus.nix` runs that
+stack declaratively via a systemd unit:
+
+- The upstream source is a pinned flake input (`odysseus` in `flake.nix`).
+- On start, the unit rsyncs the source into `/var/lib/odysseus/src`, renders a
+  `.env`, and runs `docker compose up -d --build`. First build is slow (it
+  builds the Odysseus image and pulls the sidecars).
+- It talks to this box's Ollama at `http://host.docker.internal:11434`.
+- Auth is enabled. A random admin password is generated once and stored at
+  `/var/lib/odysseus/admin_password`; the user is `admin`.
+- Persistent data/logs live under `/var/lib/odysseus/{data,logs}`.
+
+Browse from the Mac: **http://nix.orb.local:7000** (log in with `admin` and the
+password in `/var/lib/odysseus/admin_password`).
+
+> Note: Odysseus needs a working Docker daemon. Inside the OrbStack LXC dev
+> container nested Docker can be finicky; the module is written to be portable
+> to real hardware hosts where Docker runs natively.
 
 ## Deploying to the OrbStack dev machine
 
@@ -29,15 +62,17 @@ repo is directly visible inside the VM. From the Mac:
 
 ```sh
 git add -A          # flakes only see git-tracked files!
-orb -m nix -w ~/Documents/develop/ai-appliance \
+orb -m nix -w ~/Documents/develop/ai-os \
   sudo nixos-rebuild switch --flake .#orbstack-dev
 ```
 
 Or open a shell in the machine (`orb -m nix`) and run the rebuild from the
 repo directory. First build downloads Ollama + Open WebUI; the first Ollama
-start also pulls `llama3.2:3b` (declared in `modules/inference.nix`).
+start also pulls `llama3.2:3b` (declared in `modules/inference.nix`). The first
+rebuild that includes Odysseus also builds its docker compose stack.
 
-Then browse from the Mac: **http://nix.orb.local:8080**
+Then browse from the Mac: **http://nix.orb.local:8080** (Open WebUI) or
+**http://nix.orb.local:7000** (Odysseus).
 
 Roll back a bad rebuild with `sudo nixos-rebuild switch --rollback`.
 

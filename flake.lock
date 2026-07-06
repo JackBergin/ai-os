@@ -16,9 +16,27 @@
         "type": "github"
       }
     },
+    "odysseus": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1782914031,
+        "narHash": "sha256-QEQN+9+Vtn6j81euQF5+Va9Wo5UPc3Sk/FPnVCLx+fM=",
+        "owner": "pewdiepie-archdaemon",
+        "repo": "odysseus",
+        "rev": "dc3530b8fa817dfc87f5e32920b0bfcfb27ea017",
+        "type": "github"
+      },
+      "original": {
+        "owner": "pewdiepie-archdaemon",
+        "ref": "main",
+        "repo": "odysseus",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "odysseus": "odysseus"
       }
     }
   },
