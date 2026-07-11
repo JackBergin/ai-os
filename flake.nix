@@ -11,6 +11,14 @@
       url = "github:pewdiepie-archdaemon/odysseus/main";
       flake = false;
     };
+
+    # Hermes Agent (Nous Research): autonomous agent with persistent memory,
+    # skills, and a messaging gateway. A real flake — exports packages (uv2nix)
+    # and nixosModules.default, consumed by modules/hermes.nix. Nix support is
+    # upstream Tier 2 (main may break), so pin release tags, not main.
+    # Deliberately NOT following our nixpkgs: their package set is built and
+    # tested against their own pinned nixos-unstable.
+    hermes-agent.url = "github:NousResearch/hermes-agent/v2026.7.7.2";
   };
 
   outputs = { self, nixpkgs, ... }@inputs: {

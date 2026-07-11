@@ -7,7 +7,7 @@ repo — every deployed machine is reproducible from a commit hash.
 ## Layout
 
 ```
-flake.nix                     # Pins nixpkgs + odysseus, declares one config per host
+flake.nix                     # Pins nixpkgs + app sources, declares one config per host
 hosts/
   orbstack-dev/               # Dev target: OrbStack NixOS container on the Mac
     configuration.nix         # Host plumbing (users, networking, OrbStack bits)
@@ -18,6 +18,7 @@ modules/                      # The product. Portable across hosts.
   inference.nix               # Ollama runtime (:11434)
   webui.nix                   # Open WebUI (:8080)
   odysseus.nix                # Odysseus AI workspace, docker compose stack (:7000)
+  hermes.nix                  # Hermes Agent gateway + API server (:8642)
 ```
 
 `modules/` is the IP: a future `hosts/appliance-v1/` targeting real hardware
@@ -31,6 +32,8 @@ imports the same modules and differs only in host plumbing.
 | `webui.nix`    | Open WebUI — simple chat front end for Ollama       | 8080  |
 | `odysseus.nix` | Odysseus — self-hosted AI workspace (chat, agents,  | 7000  |
 |                | deep research, documents, email, notes, calendar)   |       |
+| `hermes.nix`   | Hermes Agent — autonomous agent (memory, skills,    | 8642  |
+|                | cron, messaging gateway, OpenAI-compatible API)     |       |
 
 ### Odysseus
 
@@ -54,6 +57,28 @@ password in `/var/lib/odysseus/admin_password`).
 > Note: Odysseus needs a working Docker daemon. Inside the OrbStack LXC dev
 > container nested Docker can be finicky; the module is written to be portable
 > to real hardware hosts where Docker runs natively.
+
+### Hermes Agent
+
+[Hermes Agent](https://hermes-agent.org) (Nous Research, MIT) is an autonomous
+agent with persistent memory, self-authored skills, cron automations, and a
+messaging gateway. Upstream ships a proper Nix flake, so `modules/hermes.nix`
+consumes its NixOS module (`services.hermes-agent`) directly — no compose
+stack:
+
+- The upstream flake is a pinned input (`hermes-agent` in `flake.nix`, pinned
+  to a release tag — upstream calls Nix "Tier 2", so `main` may break).
+- The gateway runs as a hardened native systemd service (`hermes-agent`);
+  state lives in `/var/lib/hermes/.hermes`.
+- Chat goes through this box's Ollama (`http://127.0.0.1:11434/v1`, model
+  `llama3.2:3b`).
+- The gateway's OpenAI-compatible API server listens on :8642. A bearer key is
+  generated once into `/var/lib/hermes/api-server-key.env`.
+- The `hermes` CLI is on the system PATH and shares state with the gateway
+  (`hermes --tui` inside the VM for interactive chat).
+- To connect Telegram/Discord/Slack or add provider API keys, put the tokens
+  in `/var/lib/hermes/secrets.env` (e.g. `TELEGRAM_BOT_TOKEN=...`) and
+  `systemctl restart hermes-agent`.
 
 ## Deploying to the OrbStack dev machine
 

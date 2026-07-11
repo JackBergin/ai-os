@@ -61,6 +61,18 @@ in
 
       cd ${stateDir}/src
 
+      # Upstream hardcodes searxng's host publish to 127.0.0.1:8080, which
+      # collides with Open WebUI (modules/webui.nix). Only Odysseus talks to
+      # searxng (over the internal compose network), so remap the loopback
+      # debug binding to :8081. `!override` replaces the list rather than
+      # merging, which would otherwise keep the conflicting 8080 entry.
+      cat > docker-compose.override.yml <<EOF
+      services:
+        searxng:
+          ports: !override
+            - "127.0.0.1:8081:8080"
+      EOF
+
       # Persist a generated admin password across rebuilds.
       if [ ! -s ${stateDir}/admin_password ]; then
         head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 24 \

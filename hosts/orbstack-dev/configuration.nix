@@ -20,11 +20,14 @@
       ../../modules/inference.nix
       ../../modules/webui.nix
       ../../modules/odysseus.nix
+      ../../modules/hermes.nix
     ];
 
   users.users.jackbergin = {
     uid = 501;
-    extraGroups = [ "wheel" "orbstack" "audio" ];
+    # "hermes" grants access to the shared Hermes Agent state dir
+    # (/var/lib/hermes/.hermes) so the interactive `hermes` CLI works.
+    extraGroups = [ "wheel" "orbstack" "audio" "hermes" ];
 
     # simulate isNormalUser, but with an arbitrary UID
     isSystemUser = true;
