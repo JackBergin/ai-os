@@ -1,7 +1,7 @@
 # Host: OrbStack NixOS dev container on the MacBook.
 # OrbStack-specific plumbing lives in incus.nix / orbstack.nix (copied from
 # the machine's generated /etc/nixos — refresh them if OrbStack regenerates).
-# Product code lives in ../../modules and is shared with future hardware hosts.
+# Product code lives in ../modules and is shared with native/docker hosts.
 
 { config, pkgs, modulesPath, ... }:
 
@@ -16,11 +16,11 @@
       ./orbstack.nix
 
       # ─── Appliance layer ───────────────────────────
-      ../../modules/base.nix
-      ../../modules/inference.nix
-      ../../modules/webui.nix
-      ../../modules/odysseus.nix
-      ../../modules/hermes.nix
+      ../modules/base.nix
+      ../modules/inference.nix
+      ../modules/webui.nix
+      ../modules/odysseus.nix
+      ../modules/hermes.nix
     ];
 
   users.users.jackbergin = {

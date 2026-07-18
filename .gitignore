@@ -1,3 +1,9 @@
 result
 result-*
 .DS_Store
+
+# local/ Docker stack (Ubuntu/macOS) — vendored source + runtime data
+local/odysseus/
+local/odysseus-data/
+local/odysseus-logs/
+local/.env
