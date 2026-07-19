@@ -8,12 +8,62 @@ services:
       context: ./odysseus
       dockerfile: Dockerfile
 
+  # Host port defaults to 11435 via .env — the native systemd ollama already
+  # owns 11434 (that clash is why this container sat in "Created" forever).
+  # In-network clients still use http://ollama:11434.
   ollama:
     image: docker.io/ollama/ollama:latest
     ports:
       - "${OLLAMA_PORT:-11434}:11434"
     volumes:
       - ollama-data:/root/.ollama
+      - ${MODELS_GGUF_DIR:-/home/onr/models/gguf}:/models/gguf:ro
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  # OpenAI-compatible llama.cpp endpoint with speculative decoding — the
+  # fast local coding backend picked by the draftbench sweep. Gated behind a
+  # profile so it doesn't grab VRAM until you want it:
+  #   ./up.sh up -d --profile spec
+  # It waits for the GGUF downloads to complete before starting. Change
+  # SPEC_TARGET / SPEC_DRAFT in .env once sweep results are in.
+  llama-server:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    profiles: ["spec"]
+    ports:
+      - "127.0.0.1:${LLAMA_SERVER_PORT:-8083}:8080"
+    volumes:
+      - ${MODELS_GGUF_DIR:-/home/onr/models/gguf}:/models/gguf:ro
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        target="/models/gguf/${SPEC_TARGET:-Qwen3.5-9B-Q4_K_M.gguf}"
+        draft="/models/gguf/${SPEC_DRAFT:-Qwen3.5-0.8B-Q8_0.gguf}"
+        while [ ! -f "$$target" ] || [ -e "$$target.part" ] || [ ! -f "$$draft" ] || [ -e "$$draft.part" ]; do
+          echo "llama-server: waiting for $$target / $$draft to finish downloading ..."
+          sleep 30
+        done
+        exec /app/llama-server -m "$$target" --model-draft "$$draft" ${SPEC_TYPE_ARGS:---spec-type draft-simple} \
+          -ngl ${SPEC_NGL:-99} -c ${SPEC_CTX:-8192} --host 0.0.0.0 --port 8080 ${SPEC_EXTRA_ARGS:-}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     restart: unless-stopped
 
   open-webui:

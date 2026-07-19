@@ -27,12 +27,19 @@ fi
 if [ ! -d odysseus/.git ]; then
   echo "cloning Odysseus @ ${ODYSSEUS_REV}..."
   rm -rf odysseus
-  git clone --filter=blob:none "$ODYSSEUS_REPO" odysseus
+  # Full clone — blobless clones can leave Dockerfile empty when BuildKit
+  # packs the context ("transferring dockerfile: 2B").
+  git clone "$ODYSSEUS_REPO" odysseus
   git -C odysseus checkout "$ODYSSEUS_REV"
 elif [ "$(git -C odysseus rev-parse HEAD)" != "$ODYSSEUS_REV" ]; then
   echo "updating Odysseus to ${ODYSSEUS_REV}..."
-  git -C odysseus fetch --depth 1 origin "$ODYSSEUS_REV"
+  git -C odysseus fetch origin "$ODYSSEUS_REV"
   git -C odysseus checkout "$ODYSSEUS_REV"
+fi
+
+if [ ! -s odysseus/Dockerfile ]; then
+  echo "error: odysseus/Dockerfile missing or empty — re-clone with: rm -rf odysseus && ./up.sh" >&2
+  exit 1
 fi
 
 mkdir -p odysseus-data odysseus-logs
@@ -45,8 +52,15 @@ compose=(
   --env-file "$ROOT/.env"
   -p ai-os
   -f "$ROOT/odysseus/docker-compose.yml"
-  -f "$ROOT/docker-compose.yml"
 )
+
+# NVIDIA GPU overlay for odysseus (requires nvidia-container-toolkit).
+if [ -f "$ROOT/odysseus/docker/gpu.nvidia.yml" ] && command -v nvidia-smi >/dev/null 2>&1; then
+  compose+=(-f "$ROOT/odysseus/docker/gpu.nvidia.yml")
+fi
+
+# Local overrides last so our keys win.
+compose+=(-f "$ROOT/docker-compose.yml")
 
 cmd="${1:-up}"
 shift || true
