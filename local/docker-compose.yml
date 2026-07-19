@@ -10,6 +10,10 @@ services:
     volumes:
       # Local GGUF models for Cookbook serve engines (vLLM, llama-cpp-python)
       - ${MODELS_GGUF_DIR:-/home/onr/models/gguf}:/models/gguf:ro
+      # Host projects, full read-write (container runs as PUID/PGID 1000 =
+      # host user onr, so file ownership matches). Deliberately scoped to
+      # ~/git only — not the wider filesystem.
+      - ${GIT_PROJECTS_DIR:-/home/onr/git}:/projects:rw
 
   # Host port defaults to 11435 via .env — the native systemd ollama already
   # owns 11434 (that clash is why this container sat in "Created" forever).
