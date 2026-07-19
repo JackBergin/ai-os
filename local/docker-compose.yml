@@ -7,6 +7,9 @@ services:
     build:
       context: ./odysseus
       dockerfile: Dockerfile
+    volumes:
+      # Local GGUF models for Cookbook serve engines (vLLM, llama-cpp-python)
+      - ${MODELS_GGUF_DIR:-/home/onr/models/gguf}:/models/gguf:ro
 
   # Host port defaults to 11435 via .env — the native systemd ollama already
   # owns 11434 (that clash is why this container sat in "Created" forever).
@@ -17,10 +20,16 @@ services:
       - "${OLLAMA_PORT:-11434}:11434"
     volumes:
       - ollama-data:/root/.ollama
+      # Share the native (systemd) ollama's model store so every model pulled
+      # on the host is visible here too — no duplicate downloads.
+      - ${OLLAMA_STORE_DIR:-/usr/share/ollama/.ollama/models}:/root/.ollama/models
       - ${MODELS_GGUF_DIR:-/home/onr/models/gguf}:/models/gguf:ro
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      # Never let this instance prune the shared store out from under the
+      # native ollama service.
+      - OLLAMA_NOPRUNE=1
     deploy:
       resources:
         reservations:
